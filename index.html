@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diablo IV Interactive Map · Sanctuary Complete Tracker</title>
+  <script>
+    if (window.location.protocol.startsWith('http') && !window.location.pathname.endsWith('/') && !window.location.pathname.includes('.')) {
+      window.location.replace(window.location.pathname + '/' + window.location.search + window.location.hash);
+    }
+  </script>
+  <link rel="stylesheet" href="assets/leaflet.css" />
+  <link rel="stylesheet" href="style.css?v=3.1" />
+</head>
+<body>
+
+  <!-- Top App Navigation Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <img src="assets/icons/altar_of_lilith.png" alt="Diablo 4 Map" class="app-logo-icon" />
+      <div class="app-title-box">
+        <h1>Diablo IV Map</h1>
+        <div class="subtitle">Interactive Sanctuary Tracker</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="btnToggleSound" class="btn btn-sm" title="Toggle collection sound effects">
+        🔊 Sound: On
+      </button>
+      <button id="btnToggleSubregions" class="btn btn-sm" title="Toggle subregion boundaries and labels">
+        🗺 Subregions: On
+      </button>
+      <button id="btnToggleCompleted" class="btn" title="Toggle visibility of completed markers">
+        👁‍🗨 Hide Completed
+      </button>
+      <button id="btnPinMode" class="btn" title="Add custom pin at any coordinates">
+        📍 Add Custom Pin
+      </button>
+      <button id="btnRouteMode" class="btn" title="Measure distances and trace farming routes">
+        📐 Draw Route
+      </button>
+      <button id="btnClearRoute" class="btn btn-sm" style="display: none;" title="Clear drawn route">
+        ✕ Clear Route
+      </button>
+      <button id="btnExport" class="btn" title="Export complete backup as JSON">
+        ⬇ Export
+      </button>
+      <button id="btnImport" class="btn" title="Restore JSON backup">
+        ⬆ Import
+      </button>
+      <input type="file" id="importFileInput" accept=".json" style="display: none;" />
+      <button id="btnClearProgress" class="btn btn-primary" title="Clear tracked markers">
+        🗑 Clear
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <div class="app-container">
+
+    <!-- Collapsible Sidebar -->
+    <aside id="sidebar" class="sidebar">
+
+      <!-- Live Search Bar -->
+      <div class="sidebar-search-box">
+        <div class="search-input-wrapper">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search by name, aspect, or keyword..." />
+          <button id="searchClear" class="search-clear-btn" title="Clear search">✕</button>
+        </div>
+
+        <!-- Dynamic Aspect Highlight Card (appears when searching aspects) -->
+        <div id="aspectSearchCard" class="aspect-search-card">
+          <div class="aspect-search-header">
+            <img id="aspectSearchIcon" src="assets/icons/offensive.png" class="aspect-search-icon" alt="" />
+            <div>
+              <div id="aspectSearchName" class="aspect-search-name">Aspect Name</div>
+              <div id="aspectSearchClass" class="aspect-search-extra" style="font-size:11px; color:#d1a781;">Codex of Power</div>
+            </div>
+          </div>
+          <div id="aspectSearchDungeon" class="aspect-search-dungeon">Dungeon: <b>Dungeon Name</b> (Region)</div>
+          <div id="aspectSearchDesc" class="aspect-search-desc">Legendary power description...</div>
+          <button id="aspectSearchBtn" class="aspect-search-btn">📍 Locate Dungeon on Map</button>
+        </div>
+      </div>
+
+      <!-- Quick Controls -->
+      <div class="sidebar-quick-controls">
+        <a href="#" id="btnSelectAll" class="quick-link">Select All</a>
+        <a href="#" id="btnDeselectAll" class="quick-link">Deselect All</a>
+      </div>
+
+      <!-- Category Filters -->
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>Map Filters</span>
+        </div>
+        <div class="filters-grid">
+          <button class="filter-btn active" data-category="Waygate">
+            <div class="filter-left">
+              <img src="assets/icons/waygate.png" class="filter-icon" alt="Waypoints" />
+              <span class="filter-name">Waypoints</span>
+            </div>
+            <div class="filter-right">
+              <span class="filter-count" data-cat-count="Waygate">0/41</span>
+            </div>
+          </button>
+
+          <button class="filter-btn active" data-category="Dungeon">
+            <div class="filter-left">
+              <img src="assets/icons/dungeon.png" class="filter-icon" alt="Dungeons" />
+              <span class="filter-name">Dungeons</span>
+            </div>
+            <div class="filter-right">
+              <span class="filter-count" data-cat-count="Dungeon">0/135</span>
+            </div>
+          </button>
+
+          <button class="filter-btn active" data-category="Altar of Lilith">
+            <div class="filter-left">
+              <img src="assets/icons/altar_of_lilith.png" class="filter-icon" alt="Altars of Lilith" />
+              <span class="filter-name">Altars of Lilith</span>
+            </div>
+            <div class="filter-right">
+              <span class="filter-count" data-cat-count="Altar of Lilith">0/160</span>
+            </div>
+          </button>
+
+          <button class="filter-btn active" data-category="Tenet of Akarat">
+            <div class="filter-left">
+              <img src="assets/icons/tenet_of_akarat.png" class="filter-icon" alt="Tenets of Akarat" />
+              <span class="filter-name">Tenets of Akarat (Nahantu)</span>
+            </div>
+            <div class="filter-right">
+              <span class="filter-count" data-cat-count="Tenet of Akarat">0/30</span>
+            </div>
+          </button>
+
+          <button class="filter-btn active" data-category="Stronghold">
+            <div class="filter-left">
+              <img src="assets/icons/stronghold.png" class="filter-icon" alt="Strongholds" />
+              <span class="filter-name">Strongholds</span>
+            </div>
+            <div class="filter-right">
+              <span class="filter-count" data-cat-count="Stronghold">0/18</span>
+            </div>
+          </button>
+
+          <button class="filter-btn active" data-category="World Boss">
+            <div class="filter-left">
+              <img src="assets/icons/boss.png" class="filter-icon" alt="World Bosses" />
+              <span class="filter-name">World Bosses</span>
+            </div>
+            <div class="filter-right">
+              <span class="filter-count" data-cat-count="World Boss">0/6</span>
+            </div>
+          </button>
+
+          <button class="filter-btn active" data-category="Boss Lair">
+            <div class="filter-left">
+              <img src="assets/icons/dungeon_boss.png" class="filter-icon" alt="Boss Lairs" />
+              <span class="filter-name">Boss Lairs (Tormented)</span>
+            </div>
+            <div class="filter-right">
+              <span class="filter-count" data-cat-count="Boss Lair">0/8</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Region Progress Breakdown -->
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>Region Progress</span>
+          <a href="#" id="btnResetRegionFilter" class="quick-link" style="display:none;">View All</a>
+        </div>
+        <div class="regions-list">
+
+          <!-- Fractured Peaks -->
+          <div class="region-item" data-region="Fractured Peaks">
+            <div class="region-header">
+              <div class="region-left">
+                <img src="assets/icons/fractured_peaks.png" class="region-icon" alt="Fractured Peaks" />
+                <span class="region-name">Fractured Peaks</span>
+              </div>
+              <div class="region-header-controls">
+                <span class="filter-count" data-region-count="Fractured Peaks">0/61</span>
+                <button class="region-btn-tool btn-isolate-region" data-isolate-region="Fractured Peaks" title="Isolate Fractured Peaks on map">Isolate</button>
+                <button class="region-btn-tool region-fly-btn" data-fly-region="Fractured Peaks" title="Zoom directly to Fractured Peaks">Fly ➔</button>
+              </div>
+            </div>
+            <div class="region-body">
+              <div class="region-progress-bar-bg">
+                <div class="region-progress-bar-fill" data-region-bar="Fractured Peaks"></div>
+              </div>
+              <div class="sub-progress-grid">
+                <div class="sub-progress-item" data-toggle-checklist="Fractured Peaks" data-check-type="Altar of Lilith" title="Click to view checklist">
+                  <span>Altars:</span> <b data-sub-altar="Fractured Peaks">0/28</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Fractured Peaks" data-check-type="Stronghold" title="Click to view checklist">
+                  <span>Strongholds:</span> <b data-sub-stronghold="Fractured Peaks">0/3</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Fractured Peaks" data-check-type="Waygate" title="Click to view checklist">
+                  <span>Waypoints:</span> <b data-sub-waypoint="Fractured Peaks">0/7</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Fractured Peaks" data-check-type="Dungeon" title="Click to view checklist">
+                  <span>Dungeons:</span> <b data-sub-dungeon="Fractured Peaks">0/23</b>
+                </div>
+              </div>
+
+              <!-- Mass actions -->
+              <div class="region-mass-actions">
+                <button class="btn-region-action btn-mark-region-all" data-region-action="mark" data-target-region="Fractured Peaks">✓ Mark All</button>
+                <button class="btn-region-action btn-unmark-region-all" data-region-action="unmark" data-target-region="Fractured Peaks">↺ Unmark All</button>
+              </div>
+
+              <!-- Checklist Container -->
+              <div class="region-checklist-drawer" data-drawer-region="Fractured Peaks"></div>
+            </div>
+          </div>
+
+          <!-- Scosglen -->
+          <div class="region-item" data-region="Scosglen">
+            <div class="region-header">
+              <div class="region-left">
+                <img src="assets/icons/scosglen.png" class="region-icon" alt="Scosglen" />
+                <span class="region-name">Scosglen</span>
+              </div>
+              <div class="region-header-controls">
+                <span class="filter-count" data-region-count="Scosglen">0/70</span>
+                <button class="region-btn-tool btn-isolate-region" data-isolate-region="Scosglen" title="Isolate Scosglen on map">Isolate</button>
+                <button class="region-btn-tool region-fly-btn" data-fly-region="Scosglen" title="Zoom directly to Scosglen">Fly ➔</button>
+              </div>
+            </div>
+            <div class="region-body">
+              <div class="region-progress-bar-bg">
+                <div class="region-progress-bar-fill" data-region-bar="Scosglen"></div>
+              </div>
+              <div class="sub-progress-grid">
+                <div class="sub-progress-item" data-toggle-checklist="Scosglen" data-check-type="Altar of Lilith">
+                  <span>Altars:</span> <b data-sub-altar="Scosglen">0/34</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Scosglen" data-check-type="Stronghold">
+                  <span>Strongholds:</span> <b data-sub-stronghold="Scosglen">0/3</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Scosglen" data-check-type="Waygate">
+                  <span>Waypoints:</span> <b data-sub-waypoint="Scosglen">0/8</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Scosglen" data-check-type="Dungeon">
+                  <span>Dungeons:</span> <b data-sub-dungeon="Scosglen">0/25</b>
+                </div>
+              </div>
+
+              <div class="region-mass-actions">
+                <button class="btn-region-action btn-mark-region-all" data-region-action="mark" data-target-region="Scosglen">✓ Mark All</button>
+                <button class="btn-region-action btn-unmark-region-all" data-region-action="unmark" data-target-region="Scosglen">↺ Unmark All</button>
+              </div>
+
+              <div class="region-checklist-drawer" data-drawer-region="Scosglen"></div>
+            </div>
+          </div>
+
+          <!-- Dry Steppes -->
+          <div class="region-item" data-region="Dry Steppes">
+            <div class="region-header">
+              <div class="region-left">
+                <img src="assets/icons/dry_steppes.png" class="region-icon" alt="Dry Steppes" />
+                <span class="region-name">Dry Steppes</span>
+              </div>
+              <div class="region-header-controls">
+                <span class="filter-count" data-region-count="Dry Steppes">0/65</span>
+                <button class="region-btn-tool btn-isolate-region" data-isolate-region="Dry Steppes" title="Isolate Dry Steppes on map">Isolate</button>
+                <button class="region-btn-tool region-fly-btn" data-fly-region="Dry Steppes" title="Zoom directly to Dry Steppes">Fly ➔</button>
+              </div>
+            </div>
+            <div class="region-body">
+              <div class="region-progress-bar-bg">
+                <div class="region-progress-bar-fill" data-region-bar="Dry Steppes"></div>
+              </div>
+              <div class="sub-progress-grid">
+                <div class="sub-progress-item" data-toggle-checklist="Dry Steppes" data-check-type="Altar of Lilith">
+                  <span>Altars:</span> <b data-sub-altar="Dry Steppes">0/33</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Dry Steppes" data-check-type="Stronghold">
+                  <span>Strongholds:</span> <b data-sub-stronghold="Dry Steppes">0/3</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Dry Steppes" data-check-type="Waygate">
+                  <span>Waypoints:</span> <b data-sub-waypoint="Dry Steppes">0/8</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Dry Steppes" data-check-type="Dungeon">
+                  <span>Dungeons:</span> <b data-sub-dungeon="Dry Steppes">0/21</b>
+                </div>
+              </div>
+
+              <div class="region-mass-actions">
+                <button class="btn-region-action btn-mark-region-all" data-region-action="mark" data-target-region="Dry Steppes">✓ Mark All</button>
+                <button class="btn-region-action btn-unmark-region-all" data-region-action="unmark" data-target-region="Dry Steppes">↺ Unmark All</button>
+              </div>
+
+              <div class="region-checklist-drawer" data-drawer-region="Dry Steppes"></div>
+            </div>
+          </div>
+
+          <!-- Kehjistan -->
+          <div class="region-item" data-region="Kehjistan">
+            <div class="region-header">
+              <div class="region-left">
+                <img src="assets/icons/kehjistan.png" class="region-icon" alt="Kehjistan" />
+                <span class="region-name">Kehjistan</span>
+              </div>
+              <div class="region-header-controls">
+                <span class="filter-count" data-region-count="Kehjistan">0/63</span>
+                <button class="region-btn-tool btn-isolate-region" data-isolate-region="Kehjistan" title="Isolate Kehjistan on map">Isolate</button>
+                <button class="region-btn-tool region-fly-btn" data-fly-region="Kehjistan" title="Zoom directly to Kehjistan">Fly ➔</button>
+              </div>
+            </div>
+            <div class="region-body">
+              <div class="region-progress-bar-bg">
+                <div class="region-progress-bar-fill" data-region-bar="Kehjistan"></div>
+              </div>
+              <div class="sub-progress-grid">
+                <div class="sub-progress-item" data-toggle-checklist="Kehjistan" data-check-type="Altar of Lilith">
+                  <span>Altars:</span> <b data-sub-altar="Kehjistan">0/31</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Kehjistan" data-check-type="Stronghold">
+                  <span>Strongholds:</span> <b data-sub-stronghold="Kehjistan">0/3</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Kehjistan" data-check-type="Waygate">
+                  <span>Waypoints:</span> <b data-sub-waypoint="Kehjistan">0/6</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Kehjistan" data-check-type="Dungeon">
+                  <span>Dungeons:</span> <b data-sub-dungeon="Kehjistan">0/23</b>
+                </div>
+              </div>
+
+              <div class="region-mass-actions">
+                <button class="btn-region-action btn-mark-region-all" data-region-action="mark" data-target-region="Kehjistan">✓ Mark All</button>
+                <button class="btn-region-action btn-unmark-region-all" data-region-action="unmark" data-target-region="Kehjistan">↺ Unmark All</button>
+              </div>
+
+              <div class="region-checklist-drawer" data-drawer-region="Kehjistan"></div>
+            </div>
+          </div>
+
+          <!-- Hawezar -->
+          <div class="region-item" data-region="Hawezar">
+            <div class="region-header">
+              <div class="region-left">
+                <img src="assets/icons/hawezar.png" class="region-icon" alt="Hawezar" />
+                <span class="region-name">Hawezar</span>
+              </div>
+              <div class="region-header-controls">
+                <span class="filter-count" data-region-count="Hawezar">0/66</span>
+                <button class="region-btn-tool btn-isolate-region" data-isolate-region="Hawezar" title="Isolate Hawezar on map">Isolate</button>
+                <button class="region-btn-tool region-fly-btn" data-fly-region="Hawezar" title="Zoom directly to Hawezar">Fly ➔</button>
+              </div>
+            </div>
+            <div class="region-body">
+              <div class="region-progress-bar-bg">
+                <div class="region-progress-bar-fill" data-region-bar="Hawezar"></div>
+              </div>
+              <div class="sub-progress-grid">
+                <div class="sub-progress-item" data-toggle-checklist="Hawezar" data-check-type="Altar of Lilith">
+                  <span>Altars:</span> <b data-sub-altar="Hawezar">0/34</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Hawezar" data-check-type="Stronghold">
+                  <span>Strongholds:</span> <b data-sub-stronghold="Hawezar">0/3</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Hawezar" data-check-type="Waygate">
+                  <span>Waypoints:</span> <b data-sub-waypoint="Hawezar">0/6</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Hawezar" data-check-type="Dungeon">
+                  <span>Dungeons:</span> <b data-sub-dungeon="Hawezar">0/23</b>
+                </div>
+              </div>
+
+              <div class="region-mass-actions">
+                <button class="btn-region-action btn-mark-region-all" data-region-action="mark" data-target-region="Hawezar">✓ Mark All</button>
+                <button class="btn-region-action btn-unmark-region-all" data-region-action="unmark" data-target-region="Hawezar">↺ Unmark All</button>
+              </div>
+
+              <div class="region-checklist-drawer" data-drawer-region="Hawezar"></div>
+            </div>
+          </div>
+
+          <!-- Nahantu (Vessel of Hatred) -->
+          <div class="region-item" data-region="Nahantu">
+            <div class="region-header">
+              <div class="region-left">
+                <img src="assets/icons/nahantu.png" class="region-icon" alt="Nahantu" />
+                <span class="region-name">Nahantu (VoH)</span>
+              </div>
+              <div class="region-header-controls">
+                <span class="filter-count" data-region-count="Nahantu">0/59</span>
+                <button class="region-btn-tool btn-isolate-region" data-isolate-region="Nahantu" title="Isolate Nahantu on map">Isolate</button>
+                <button class="region-btn-tool region-fly-btn" data-fly-region="Nahantu" title="Zoom directly to Nahantu">Fly ➔</button>
+              </div>
+            </div>
+            <div class="region-body">
+              <div class="region-progress-bar-bg">
+                <div class="region-progress-bar-fill" data-region-bar="Nahantu"></div>
+              </div>
+              <div class="sub-progress-grid">
+                <div class="sub-progress-item" data-toggle-checklist="Nahantu" data-check-type="Tenet of Akarat">
+                  <span>Tenets:</span> <b data-sub-altar="Nahantu">0/30</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Nahantu" data-check-type="Stronghold">
+                  <span>Strongholds:</span> <b data-sub-stronghold="Nahantu">0/3</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Nahantu" data-check-type="Waygate">
+                  <span>Waypoints:</span> <b data-sub-waypoint="Nahantu">0/6</b>
+                </div>
+                <div class="sub-progress-item" data-toggle-checklist="Nahantu" data-check-type="Dungeon">
+                  <span>Dungeons:</span> <b data-sub-dungeon="Nahantu">0/20</b>
+                </div>
+              </div>
+
+              <div class="region-mass-actions">
+                <button class="btn-region-action btn-mark-region-all" data-region-action="mark" data-target-region="Nahantu">✓ Mark All</button>
+                <button class="btn-region-action btn-unmark-region-all" data-region-action="unmark" data-target-region="Nahantu">↺ Unmark All</button>
+              </div>
+
+              <div class="region-checklist-drawer" data-drawer-region="Nahantu"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Class Codex Filters -->
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>Classes (Codex Aspects)</span>
+        </div>
+        <div class="classes-grid">
+          <button class="class-btn" data-class="Barbarian">
+            <img src="assets/icons/barbarian.png" class="class-icon" alt="Barbarian" />
+            <span class="class-name">Barbarian</span>
+            <span class="class-count" data-class-count="Barbarian">0/15</span>
+          </button>
+
+          <button class="class-btn" data-class="Druid">
+            <img src="assets/icons/druid.png" class="class-icon" alt="Druid" />
+            <span class="class-name">Druid</span>
+            <span class="class-count" data-class-count="Druid">0/21</span>
+          </button>
+
+          <button class="class-btn" data-class="Necromancer">
+            <img src="assets/icons/necromancer.png" class="class-icon" alt="Necromancer" />
+            <span class="class-name">Necro</span>
+            <span class="class-count" data-class-count="Necromancer">0/18</span>
+          </button>
+
+          <button class="class-btn" data-class="Rogue">
+            <img src="assets/icons/rogue.png" class="class-icon" alt="Rogue" />
+            <span class="class-name">Rogue</span>
+            <span class="class-count" data-class-count="Rogue">0/24</span>
+          </button>
+
+          <button class="class-btn" data-class="Sorcerer">
+            <img src="assets/icons/sorcerer.png" class="class-icon" alt="Sorcerer" />
+            <span class="class-name">Sorcerer</span>
+            <span class="class-count" data-class-count="Sorcerer">0/21</span>
+          </button>
+
+          <button class="class-btn" data-class="Spiritborn">
+            <img src="assets/icons/spiritborn.png" class="class-icon" alt="Spiritborn" />
+            <span class="class-name">Spiritborn</span>
+            <span class="class-count" data-class-count="Spiritborn">0/11</span>
+          </button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Sidebar Collapse Toggle Button -->
+    <button id="sidebarToggleBtn" class="sidebar-toggle-btn" title="Toggle Sidebar">
+      ✕ Hide Filters
+    </button>
+
+    <!-- Map Canvas & Layers -->
+    <div class="map-wrapper">
+
+      <!-- Active Region Isolation Banner -->
+      <div id="regionIsolateBanner" class="region-isolate-banner">
+        <span>📍 Showing only: <b id="isolateRegionName" style="color:var(--accent-gold);">Region</b></span>
+        <button id="btnExitRegionIsolate" class="btn-reset-region">✕ View All Sanctuary</button>
+      </div>
+
+      <!-- Active Route Tool Banner -->
+      <div id="routeBanner" class="route-banner" style="display: none;">
+        <div class="route-banner-info">
+          <span class="route-banner-icon">📐</span>
+          <span id="routeBannerText">Route Mode Active: Click map or markers to draw waypoints</span>
+        </div>
+        <div class="route-banner-actions">
+          <button id="btnUndoRoutePoint" class="btn-banner-action" title="Undo last waypoint">↺ Undo</button>
+          <button id="btnClearRouteBanner" class="btn-banner-action" title="Clear all waypoints">✕ Clear</button>
+          <button id="btnDoneRoute" class="btn-banner-action btn-banner-done" title="Finish drawing route">✓ Finish</button>
+        </div>
+      </div>
+
+      <div id="map"></div>
+    </div>
+
+  </div>
+
+  <!-- Bottom App Status Bar -->
+  <footer class="app-statusbar">
+    <div class="statusbar-left">
+      <div class="global-progress-box">
+        <span id="globalProgressText">Explored: 0% (0/398)</span>
+        <div class="global-progress-bar-bg">
+          <div id="globalProgressBar" class="global-progress-bar-fill"></div>
+        </div>
+      </div>
+      <span class="statusbar-hint">💡 Click marker icon to toggle as completed • Hover to inspect codex aspect</span>
+    </div>
+
+    <div class="statusbar-right">
+      <span>D4 Sanctuary Engine v2.5</span>
+    </div>
+  </footer>
+
+  <!-- Clear Progress Modal -->
+  <div id="clearModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-title">Clear Progress</div>
+      <div class="modal-body">
+        Are you sure you want to reset all tracked markers?<br /><br />
+        This will reset all Altars, Waypoints, Dungeons, and Strongholds. This action is irreversible.
+      </div>
+      <div class="modal-actions">
+        <button id="btnCancelClear" class="btn">Cancel</button>
+        <button id="btnConfirmClear" class="btn btn-primary">Reset Progress</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="assets/leaflet.js"></script>
+  <script src="data.js?v=3.1"></script>
+  <script src="regions.js?v=3.1"></script>
+  <script src="app.js?v=3.1"></script>
+</body>
+</html>
